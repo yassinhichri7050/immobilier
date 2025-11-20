@@ -1,27 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../../models/property_model.dart';
 import '../../services/firestore_service.dart';
 
-class AddPropertyPage extends StatefulWidget {
-  const AddPropertyPage({super.key});
+class EditPropertyPage extends StatefulWidget {
+  final PropertyModel property;
+
+  const EditPropertyPage({
+    super.key,
+    required this.property,
+  });
 
   @override
-  State<AddPropertyPage> createState() => _AddPropertyPageState();
+  State<EditPropertyPage> createState() => _EditPropertyPageState();
 }
 
-class _AddPropertyPageState extends State<AddPropertyPage> {
-  final _titleController = TextEditingController();
-  final _descriptionController = TextEditingController();
-  final _priceController = TextEditingController();
-  final _surfaceController = TextEditingController();
-  final _roomsController = TextEditingController();
-  final _locationController = TextEditingController();
-  final List<TextEditingController> _imageUrlControllers = [
-    TextEditingController(),
-  ];
+class _EditPropertyPageState extends State<EditPropertyPage> {
+  late final TextEditingController _titleController;
+  late final TextEditingController _descriptionController;
+  late final TextEditingController _priceController;
+  late final TextEditingController _surfaceController;
+  late final TextEditingController _roomsController;
+  late final TextEditingController _locationController;
+  late final List<TextEditingController> _imageUrlControllers;
 
-  String _selectedType = 'Appartement';
+  late String _selectedType;
   bool _loading = false;
 
   final List<String> _propertyTypes = [
@@ -30,6 +34,27 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
     'Terrain',
     'Commerce',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController = TextEditingController(text: widget.property.title);
+    _descriptionController = TextEditingController(text: widget.property.description);
+    _priceController = TextEditingController(text: widget.property.price.toStringAsFixed(0));
+    _surfaceController = TextEditingController(text: widget.property.surface.toStringAsFixed(0));
+    _roomsController = TextEditingController(text: widget.property.rooms.toString());
+    _locationController = TextEditingController(text: widget.property.location);
+    _selectedType = widget.property.type;
+
+    // Initialize image URL controllers with existing images
+    _imageUrlControllers = widget.property.images
+        .map((url) => TextEditingController(text: url))
+        .toList();
+    // Add one empty controller if there are no images
+    if (_imageUrlControllers.isEmpty) {
+      _imageUrlControllers.add(TextEditingController());
+    }
+  }
 
   @override
   void dispose() {
@@ -46,16 +71,6 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
   }
 
   Future<void> _submit() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Veuillez vous connecter')),
-        );
-      }
-      return;
-    }
-
     final title = _titleController.text.trim();
     final priceText = _priceController.text.trim();
     if (title.isEmpty || priceText.isEmpty) {
@@ -82,13 +97,13 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
     setState(() => _loading = true);
 
     try {
-      // Collecter toutes les URLs d'images non vides
+      // Collect all non-empty image URLs
       final List<String> imageUrls = _imageUrlControllers
           .map((c) => c.text.trim())
           .where((url) => url.isNotEmpty)
           .toList();
 
-      final data = {
+      final updatedData = {
         'title': title,
         'description': _descriptionController.text.trim(),
         'price': price,
@@ -96,20 +111,16 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
         'type': _selectedType,
         'rooms': rooms,
         'location': _locationController.text.trim(),
-        'userId': uid,
-        'latitude': 0.0,
-        'longitude': 0.0,
-        'images': imageUrls, // taw URL wla []
-        'isFeatured': false,
+        'images': imageUrls,
       };
 
-      await FirestoreService().addProperty(data);
+      await FirestoreService().updateProperty(widget.property.id, updatedData);
 
       if (!mounted) return;
-      Navigator.pop(context);
+      Navigator.pop(context, true); // Return true to indicate successful update
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Propriété ajoutée avec succès', style: TextStyle(color: Theme.of(context).colorScheme.onSecondary)),
+          content: Text('Annonce mise à jour', style: TextStyle(color: Theme.of(context).colorScheme.onSecondary)),
           duration: const Duration(seconds: 2),
           backgroundColor: Theme.of(context).colorScheme.secondary,
         ),
@@ -118,7 +129,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Erreur lors de la publication: $e', style: TextStyle(color: Theme.of(context).colorScheme.onSecondary)),
+            content: Text('Erreur lors de la mise à jour: $e', style: TextStyle(color: Theme.of(context).colorScheme.onSecondary)),
             duration: const Duration(seconds: 5),
             backgroundColor: Theme.of(context).colorScheme.secondary,
           ),
@@ -132,7 +143,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Ajouter une propriété')),
+      appBar: AppBar(title: const Text('Modifier l\'annonce')),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -142,8 +153,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                 controller: _titleController,
                 decoration: InputDecoration(
                   labelText: 'Titre',
-                  border:
-                      OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               ),
               const SizedBox(height: 12),
@@ -151,8 +161,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                 controller: _descriptionController,
                 decoration: InputDecoration(
                   labelText: 'Description',
-                  border:
-                      OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 ),
                 maxLines: 4,
               ),
@@ -161,16 +170,14 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                 value: _selectedType,
                 items: _propertyTypes
                     .map(
-                      (type) =>
-                          DropdownMenuItem(value: type, child: Text(type)),
+                      (type) => DropdownMenuItem(value: type, child: Text(type)),
                     )
                     .toList(),
                 onChanged: (value) =>
                     setState(() => _selectedType = value ?? _selectedType),
                 decoration: InputDecoration(
                   labelText: 'Type',
-                  border:
-                      OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               ),
               const SizedBox(height: 12),
@@ -181,8 +188,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                       controller: _priceController,
                       decoration: InputDecoration(
                         labelText: 'Prix (€)',
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12)),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                       ),
                       keyboardType: TextInputType.number,
                     ),
@@ -193,8 +199,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                       controller: _surfaceController,
                       decoration: InputDecoration(
                         labelText: 'Surface (m²)',
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12)),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                       ),
                       keyboardType: TextInputType.number,
                     ),
@@ -209,8 +214,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                       controller: _roomsController,
                       decoration: InputDecoration(
                         labelText: 'Pièces',
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12)),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                       ),
                       keyboardType: TextInputType.number,
                     ),
@@ -221,8 +225,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                       controller: _locationController,
                       decoration: InputDecoration(
                         labelText: 'Localisation',
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12)),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                       ),
                     ),
                   ),
@@ -281,8 +284,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                   onPressed: _loading ? null : _submit,
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                   child: _loading
                       ? Row(
@@ -293,13 +295,15 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                               width: 16,
                               height: 16,
                               child: CircularProgressIndicator(
-                                  strokeWidth: 2, color: Colors.white),
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
                             ),
                             SizedBox(width: 12),
-                            Text('Publication...'),
+                            Text('Mise à jour...'),
                           ],
                         )
-                      : const Text('Publier', style: TextStyle(fontSize: 16)),
+                      : const Text('Enregistrer les modifications', style: TextStyle(fontSize: 16)),
                 ),
               ),
             ],

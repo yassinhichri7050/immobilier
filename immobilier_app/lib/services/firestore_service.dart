@@ -1,4 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
+import '../models/property_model.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -21,6 +23,20 @@ class FirestoreService {
 
   Future<void> deleteProperty(String id) async {
     await propertiesRef.doc(id).delete();
+  }
+
+  Future<PropertyModel?> getPropertyById(String id) async {
+    try {
+      final doc = await propertiesRef.doc(id).get();
+      if (!doc.exists) return null;
+      return PropertyModel.fromMap(
+        doc.data() as Map<String, dynamic>,
+        doc.id,
+      );
+    } catch (e) {
+      debugPrint('Error fetching property by ID: $e');
+      return null;
+    }
   }
 
   Stream<QuerySnapshot> streamProperties() {
@@ -129,6 +145,26 @@ class FirestoreService {
     return chatId;
   }
 
+  /// Get or create a chat specific to a property and two participants.
+  /// Ensures only one chat exists per (propertyId, participant pair).
+  Future<String> getOrCreateChatForProperty(String userId1, String userId2, String propertyId) async {
+    final participants = [userId1, userId2]..sort();
+    final chatId = '${propertyId}_${participants[0]}_${participants[1]}';
+
+    final doc = await chatsRef.doc(chatId).get();
+    if (!doc.exists) {
+      await chatsRef.doc(chatId).set({
+        'propertyId': propertyId,
+        'participants': participants,
+        'createdAt': FieldValue.serverTimestamp(),
+        'lastMessage': '',
+        'lastMessageFrom': '',
+        'lastMessageTime': FieldValue.serverTimestamp(),
+      });
+    }
+    return chatId;
+  }
+
   Stream<QuerySnapshot> streamChatMessages(String chatId) {
     return chatsRef
         .doc(chatId)
@@ -153,9 +189,15 @@ class FirestoreService {
     });
   }
 
-  Stream<QuerySnapshot> streamChats(String userId) {
-    return chatsRef
-        .where('participants', arrayContains: userId)
+  Stream<QuerySnapshot> streamChats(String userId, {String? targetUserId}) {
+    Query query = chatsRef.where('participants', arrayContains: userId);
+
+    // Only apply a second filter if a specific target user id is provided
+    if (targetUserId != null && targetUserId.isNotEmpty) {
+      query = query.where('participants', arrayContains: targetUserId);
+    }
+
+    return (query as Query<Map<String, dynamic>>)
         .orderBy('lastMessageTime', descending: true)
         .snapshots();
   }

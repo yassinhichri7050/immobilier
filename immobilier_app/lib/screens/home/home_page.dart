@@ -123,7 +123,7 @@ class _HomePageState extends State<HomePage> {
             children: [
               Row(
                 children: [
-                  Icon(icon, size: 24, color: Colors.red[700]),
+                  Icon(icon, size: 24, color: Theme.of(context).colorScheme.secondary),
                   const SizedBox(width: 12),
                   Text(
                     title,
@@ -157,7 +157,7 @@ class _HomePageState extends State<HomePage> {
                 .toList();
 
             return SizedBox(
-              height: 300,
+              height: 340,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 16),

@@ -45,6 +45,7 @@ dependencies:
   cached_network_image: ^3.2.3
   firebase_app_check: ^0.2.2+7
   shared_preferences: ^2.0.15
+  intl: ^0.18.1
 
 dev_dependencies:
   flutter_test:

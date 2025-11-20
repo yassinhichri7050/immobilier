@@ -12,12 +12,38 @@ class ProfilePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('[ProfilePage] build - auth uid: ${Provider.of<AuthService>(context).currentUser?.uid}');
     final auth = Provider.of<AuthService>(context);
     final userProvider = Provider.of<UserProvider>(context);
     final uid = auth.currentUser?.uid;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Mon profil')),
+      appBar: AppBar(
+        title: const Text('Mon profil'),
+        actions: [
+          IconButton(
+            tooltip: 'Se déconnecter',
+            icon: const Icon(Icons.logout),
+            onPressed: () async {
+              final confirm = await showDialog<bool>(
+                context: context,
+                builder: (c) => AlertDialog(
+                  title: const Text('Se déconnecter'),
+                  content: const Text('Voulez-vous vous déconnecter ?'),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Annuler')),
+                    TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Déconnecter')),
+                  ],
+                ),
+              );
+              if (confirm == true) {
+                await auth.signOut();
+                if (context.mounted) Navigator.pushReplacementNamed(context, '/login');
+              }
+            },
+          ),
+        ],
+      ),
       body: uid == null
           ? const Center(child: Text('Non connecté'))
           : SingleChildScrollView(
@@ -26,7 +52,7 @@ class ProfilePage extends StatelessWidget {
                   // Profile header
                   Container(
                     padding: const EdgeInsets.all(24),
-                    color: Colors.brown.withValues(alpha: 0.1),
+                    color: Theme.of(context).colorScheme.primary.withOpacity(0.06),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -34,10 +60,11 @@ class ProfilePage extends StatelessWidget {
                           children: [
                             CircleAvatar(
                               radius: 40,
-                              backgroundColor: Colors.brown,
+                              backgroundColor: Theme.of(context).colorScheme.primary,
                               child: Text(
-                                (userProvider.user?.displayName ?? 'U')[0]
-                                    .toUpperCase(),
+                                (userProvider.user?.displayName != null && userProvider.user!.displayName.isNotEmpty)
+                                    ? userProvider.user!.displayName[0].toUpperCase()
+                                    : 'U',
                                 style: const TextStyle(
                                   fontSize: 24,
                                   color: Colors.white,
@@ -91,8 +118,16 @@ class ProfilePage extends StatelessWidget {
                         ),
                         const SizedBox(height: 12),
                         StreamBuilder<QuerySnapshot>(
-                          stream: FirestoreService().streamPropertiesByUser(uid),
+                          // Use a simple equality query without additional ordering to avoid
+                          // potential composite index requirements that can hide results.
+                          stream: FirestoreService().propertiesRef.where('userId', isEqualTo: uid).snapshots(),
                           builder: (context, snapshot) {
+                            if (snapshot.hasError) {
+                              return Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Text('Erreur chargement annonces: ${snapshot.error}'),
+                              );
+                            }
                             if (snapshot.connectionState ==
                                 ConnectionState.waiting) {
                               return const Padding(
@@ -162,7 +197,7 @@ class ProfilePage extends StatelessWidget {
                           width: double.infinity,
                           child: ElevatedButton(
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red,
+                              backgroundColor: Theme.of(context).colorScheme.secondary,
                             ),
                             onPressed: () async {
                               await auth.signOut();
@@ -171,13 +206,13 @@ class ProfilePage extends StatelessWidget {
                                     context, '/login');
                               }
                             },
-                            child: const Text(
+                            child: Text(
                               'Se déconnecter',
-                              style: TextStyle(color: Colors.white),
+                              style: TextStyle(color: Theme.of(context).colorScheme.onSecondary),
                             ),
                           ),
                         ),
-                        const SizedBox(height: 18),
+                        const SizedBox(height: 24),
                         Center(
                           child: TextButton(
                             onPressed: () => Navigator.pushNamed(context, '/about'),

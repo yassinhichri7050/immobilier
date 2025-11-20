@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
+import 'firebase_options.dart';
 import 'services/auth_service.dart';
 import 'providers/user_provider.dart';
 import 'providers/theme_provider.dart';
 import 'themes/app_theme.dart';
+import 'services/fcm_service.dart';
 
 import 'screens/splash_screen.dart';
 import 'screens/onboarding_screen.dart';
@@ -25,6 +27,10 @@ Future<void> main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // Initialize Firebase Cloud Messaging
+  await FCMService.initialize();
+
   runApp(const MyApp());
 }
 
@@ -39,30 +45,33 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => UserProvider()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
       ],
-      child: Consumer<ThemeProvider>(builder: (context, themeProvider, _) {
-        return MaterialApp(
-          debugShowCheckedModeBanner: false,
-          title: 'ImmobilierApp',
-          theme: AppTheme.lightTheme(),
-          darkTheme: AppTheme.darkTheme(),
-          themeMode: themeProvider.isDark ? ThemeMode.dark : ThemeMode.light,
-        initialRoute: '/splash',
-        routes: {
-          '/splash': (_) => const SplashScreen(),
-          '/onboarding': (_) => const OnboardingScreen(),
-          '/': (_) => const AuthWrapper(),
-          '/login': (_) => const LoginPage(),
-          '/register': (_) => const RegisterPage(),
-          '/forgot_password': (_) => const ForgotPasswordPage(),
-          '/home': (_) => const MainPageWrapper(),
-          '/property_detail': (_) => const PropertyDetailPage(),
-          '/chat': (_) => const ChatPage(),
-            '/edit_profile': (_) => const EditProfilePage(),
-            '/change_password': (_) => const ChangePasswordPage(),
-            '/about': (_) => const AboutPage(),
+      child: Consumer<ThemeProvider>(
+        builder: (context, themeProvider, _) {
+          return MaterialApp(
+            debugShowCheckedModeBanner: false,
+            title: 'ImmobilierApp',
+            theme: AppTheme.lightTheme(),
+            darkTheme: AppTheme.darkTheme(),
+            themeMode:
+                themeProvider.isDark ? ThemeMode.dark : ThemeMode.light,
+            initialRoute: '/splash',
+            routes: {
+              '/splash': (_) => const SplashScreen(),
+              '/onboarding': (_) => const OnboardingScreen(),
+              '/': (_) => const AuthWrapper(),
+              '/login': (_) => const LoginPage(),
+              '/register': (_) => const RegisterPage(),
+              '/forgot_password': (_) => const ForgotPasswordPage(),
+              '/home': (_) => const MainPageWrapper(),
+              '/property_detail': (_) => const PropertyDetailPage(),
+              '/chat': (_) => const ChatPage(),
+              '/edit_profile': (_) => const EditProfilePage(),
+              '/change_password': (_) => const ChangePasswordPage(),
+              '/about': (_) => const AboutPage(),
+            },
+          );
         },
-        );
-      }),
+      ),
     );
   }
 }
@@ -79,4 +88,3 @@ class AuthWrapper extends StatelessWidget {
     return const LoginPage();
   }
 }
-

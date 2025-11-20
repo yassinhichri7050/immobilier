@@ -44,6 +44,16 @@ class StorageService {
         final bytes = await file.readAsBytes();
         debugPrint('[StorageService] uploadXFile: Read ${bytes.length} bytes, starting putData...');
         final task = ref.putData(bytes, SettableMetadata(contentType: 'image/jpeg'));
+        // Progress logging for web uploads
+        task.snapshotEvents.listen((snap) {
+          try {
+            final transferred = snap.bytesTransferred;
+            final total = snap.totalBytes ?? 0;
+            debugPrint('[StorageService] uploadXFile snapshot: $transferred/$total, state=${snap.state}');
+          } catch (e) {
+            debugPrint('[StorageService] uploadXFile snapshot logging error: $e');
+          }
+        });
         debugPrint('[StorageService] uploadXFile: Waiting for upload with ${_uploadTimeout.inSeconds}s timeout...');
         final uploadTask = await task.timeout(
           _uploadTimeout,
@@ -61,6 +71,16 @@ class StorageService {
         final f = File(file.path);
         debugPrint('[StorageService] uploadXFile: Starting putFile...');
         final uploadTask = ref.putFile(f);
+        // Progress logging for native uploads
+        uploadTask.snapshotEvents.listen((snap) {
+          try {
+            final transferred = snap.bytesTransferred;
+            final total = snap.totalBytes ?? 0;
+            debugPrint('[StorageService] uploadXFile snapshot (native): $transferred/$total, state=${snap.state}');
+          } catch (e) {
+            debugPrint('[StorageService] uploadXFile snapshot logging error (native): $e');
+          }
+        });
         debugPrint('[StorageService] uploadXFile: Waiting for upload with ${_uploadTimeout.inSeconds}s timeout...');
         final task = await uploadTask.timeout(
           _uploadTimeout,
@@ -76,6 +96,10 @@ class StorageService {
       }
     } catch (e) {
       debugPrint('[StorageService] uploadXFile ERROR: $e');
+      if (e is FirebaseException) {
+        // Bubble a clearer message for auth/CORS/permission issues
+        throw Exception('Échec upload (Firebase): code=${e.code}, message=${e.message}');
+      }
       throw Exception('Échec de l\'upload de l\'image: $e');
     }
   }

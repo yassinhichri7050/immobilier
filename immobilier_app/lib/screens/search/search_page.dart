@@ -71,7 +71,7 @@ class _SearchPageState extends State<SearchPage> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: Colors.red.shade700,
+                    color: Theme.of(context).colorScheme.secondary,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Text(
@@ -128,14 +128,14 @@ class _SearchPageState extends State<SearchPage> {
                           _showFilters
                               ? Icons.expand_less
                               : Icons.expand_more,
-                          color: Colors.red[700],
+                          color: Theme.of(context).colorScheme.secondary,
                         ),
                         const SizedBox(width: 8),
                         Text(
                           'Filtres avancés',
                           style: TextStyle(
                             fontWeight: FontWeight.w600,
-                            color: Colors.red[700],
+                            color: Theme.of(context).colorScheme.secondary,
                             fontSize: 14,
                           ),
                         ),

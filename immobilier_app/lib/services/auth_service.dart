@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'fcm_service.dart';
 
 class AuthService extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -14,6 +15,10 @@ class AuthService extends ChangeNotifier {
 
   Future<UserCredential> signInWithEmail(String email, String password) async {
     final cred = await _auth.signInWithEmailAndPassword(email: email, password: password);
+    // Subscribe to FCM topics on sign in
+    if (cred.user?.uid != null) {
+      await FCMService.subscribeUserTopics(cred.user!.uid);
+    }
     notifyListeners();
     return cred;
   }
@@ -29,8 +34,15 @@ class AuthService extends ChangeNotifier {
       'email': email,
       'displayName': displayName ?? '',
       'phone': phone ?? '',
+      'notificationsEnabled': true,
       'createdAt': FieldValue.serverTimestamp(),
     });
+
+    // Subscribe to FCM topics after sign up
+    if (cred.user?.uid != null) {
+      await FCMService.subscribeUserTopics(cred.user!.uid);
+    }
+
     notifyListeners();
     return cred;
   }
@@ -46,6 +58,11 @@ class AuthService extends ChangeNotifier {
   }
 
   Future<void> signOut() async {
+    final uid = currentUser?.uid;
+    // Unsubscribe from FCM topics on sign out
+    if (uid != null) {
+      await FCMService.unsubscribeUserTopics(uid);
+    }
     await _auth.signOut();
     notifyListeners();
   }
